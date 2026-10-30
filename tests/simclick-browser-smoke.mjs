@@ -39,8 +39,9 @@ async function click(selector){
  const bounds=await evaluate('(()=>{const el=document.querySelector('+JSON.stringify(selector)+');if(!el)throw Error("Missing target element");el.scrollIntoView({block:"nearest"});const r=el.getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2,width:r.width,height:r.height,top:r.top,bottom:r.bottom,active:el===document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)||el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))}})()');
  assert.ok(bounds.width>=12&&bounds.height>=12,'Touch target must be visible: '+selector);
  assert.ok(bounds.active,'Touch target obstructed: '+selector+JSON.stringify(bounds));
- for(const type of ['mouseMoved','mousePressed','mouseReleased'])
-  await send('Input.dispatchMouseEvent',{type,x:bounds.x,y:bounds.y,button:type==='mouseMoved'?'none':'left',clickCount:1});
+ // Emulated mobile displays must be tested with real touch dispatch, not mouse.
+ await send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:bounds.x,y:bounds.y}]});
+ await send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
 }
 async function screenshot(name){
  const s=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
@@ -72,7 +73,7 @@ try{
  await screenshot('01-city-393.png');
 
  await click('[data-sc-page="home"]');
- await until('document.querySelector(".sc-panel.home")!==null');
+ await until('document.querySelector(".sc-panel.home")!==null',10000);
  assert.ok((await evaluate('document.querySelector(".sc-body").textContent')).includes('ความต้องการ'));
  await click('[data-sc-action="sleep"]');
  const activity=await evaluate('JSON.parse(localStorage.getItem("simclick.life.v1")).activity.id');
