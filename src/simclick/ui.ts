@@ -16,6 +16,7 @@ export function installSimClick(api: { city: () => City; minute: () => number; f
  const actions = (ids: ActivityId[]) => '<div class="sc-actions">' + ids.map(id => '<button type="button" data-sc-action="' + id + '"><span>' + ACTIVITIES[id].icon + '</span><b>' + ACTIVITIES[id].label + '</b><small>' + ACTIVITIES[id].minutes + ' นาที</small></button>').join('') + '</div>';
  const needs = () => '<div class="sc-needs">' + Object.entries(life.needs).map(([k,v]) => '<label>' + ({full:'ความอิ่ม',energy:'พลังงาน',joy:'ความสุข',social:'สังคม',hygiene:'ความสะอาด'} as Record<string,string>)[k] + ' ' + Math.round(v) + '%<i><span style="width:' + v + '%"></span></i></label>').join('') + '</div>';
  function draw() {
+  const previousScroll = root.querySelector<HTMLElement>('.sc-panel')?.scrollTop ?? 0;
   const c = api.city(), now = Math.floor(api.minute()), dayMin = now % 1440, house = home(), resident = household(), current = life.activity;
   const clock = 'วันที่ ' + (Math.floor(now/1440)+1) + ' · ' + String(Math.floor(dayMin/60)).padStart(2,'0') + ':' + String(dayMin%60).padStart(2,'0');
   let content = '';
@@ -35,13 +36,32 @@ export function installSimClick(api: { city: () => City; minute: () => number; f
   }
   root.innerHTML = '<header class="sc-header"><strong>THE SIM <em>CLICK</em><small>' + clock + '</small></strong><button data-sc-builder>' + (building ? '↩ กลับสู่ชีวิต' : '⚙ จัดการเมือง') + '</button></header>' +
    (building ? '<p class="sc-builder-note">โหมดสร้างเมือง · ใช้เครื่องมือเดิม</p>' : '<main class="sc-panel ' + page + '"><div class="sc-status">● ' + (current ? ACTIVITIES[current.id].label : 'พักผ่อน') + '<small>' + Math.ceil(Math.max(0,(current?.endsAt||now)-now)) + ' นาทีเกม · Idle</small></div><div class="sc-body">' + content + '</div><p class="sc-message" role="status">' + message + '</p></main><nav class="sc-nav">' + ([['city','🏙️','เมือง'],['home','🏠','บ้าน'],['character','🧑','ตัวละคร']] as const).map(([id,icon,label])=>'<button data-sc-page="' + id + '" class="' + (page===id?'active':'') + '"><span>' + icon + '</span><small>' + label + '</small></button>').join('') + '</nav>');
+  const panel = root.querySelector<HTMLElement>('.sc-panel');
+  if (panel) panel.scrollTop = previousScroll;
   root.querySelector<HTMLButtonElement>('[data-sc-builder]')?.addEventListener('click',()=>{building=!building;document.documentElement.classList.toggle('simclick-builder',building);draw();});
   root.querySelectorAll<HTMLButtonElement>('[data-sc-page]').forEach(b=>b.onclick=()=>{page=b.dataset.scPage as Page;draw();});
   root.querySelectorAll<HTMLButtonElement>('[data-sc-place]').forEach(b=>b.onclick=()=>{const i=Number(b.dataset.scPlace);if(!c.cells[i])return;place=i;page='city';api.focus(i);message='เลือก '+placeName(i)+' แล้ว';draw();});
   root.querySelectorAll<HTMLButtonElement>('[data-sc-action]').forEach(b=>b.onclick=()=>{message=startActivity(life,b.dataset.scAction as ActivityId,api.minute()).message;save();draw();});
  }
  draw();
- return { sync() { const c=api.city(),now=api.minute(); if(world!==c){world=c;life=load();place=null;seen=-1;} if(Math.floor(now)!==seen){advanceLife(life,now);household();seen=Math.floor(now);save();draw();} },
+ let lastPaint = -1;
+ const onExit = () => { advanceLife(life, api.minute()); save(); };
+ document.addEventListener('visibilitychange', () => { if (document.hidden) onExit(); });
+ window.addEventListener('pagehide', onExit);
+ return { sync() {
+    const c = api.city(), now = api.minute(), rounded = Math.floor(now);
+    if (world !== c) { world = c; life = load(); place = null; seen = -1; lastPaint = -1; }
+    // Update the displayed clock without replacing the entire mobile panel.
+    // Rebuilding buttons 12 times per second would make touch scroll unreliable.
+    const display = root.querySelector<HTMLElement>('.sc-header small');
+    if (display && rounded !== seen) {
+      const d = rounded % 1440;
+      display.textContent = 'วันที่ ' + (Math.floor(rounded / 1440)+1) + ' · ' + String(Math.floor(d/60)).padStart(2,'0') + ':' + String(d%60).padStart(2,'0');
+    }
+    seen = rounded;
+    const block = Math.floor(now / 15);
+    if (block !== lastPaint) { advanceLife(life, now); household(); lastPaint = block; save(); draw(); }
+  },
   visit(cell:number){if(!api.city().cells[cell])return;place=cell;page='city';message='เลือก '+placeName(cell)+' แล้ว';draw();},
   reset(){world=api.city();life=newLife(world.seed,api.minute());place=null;page='city';save();draw();} };
 }
