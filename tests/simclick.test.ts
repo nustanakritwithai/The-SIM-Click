@@ -32,10 +32,29 @@ test('player state uses its own namespaced storage, resets on incompatible city 
   saveLife(storage, s);
   assert.equal(loadLife(storage, 999, 510).activity?.id, 'clean');
   assert.equal(loadLife(storage, 998, 510).citySeed, 998);
-  assert.equal(loadLife(storage, 999, 450).lastMinute, 450);
+  const rewound = loadLife(storage, 999, 450);
+  assert.equal(rewound.lastMinute, 450);
+  assert.equal(rewound.activity?.id, 'clean');
+  assert.equal(rewound.activity?.endsAt, 495);
+  assert.equal(rewound.events[0], 'เวลาในเมืองย้อนกลับสู่จุดเซฟล่าสุด');
   assert.ok(values.has('simclick.life.v1'));
   assert.equal(values.has('citymanager.save.v7'), false);
 });
 test('every activity is positive duration', () => {
   for (const item of Object.values(ACTIVITIES)) assert.ok(item.minutes > 0);
+});
+
+test('a life-sidecar newer than the city save does not erase skill progress or double-reward', () => {
+ const values = new Map<string,string>();
+ const storage = {getItem:(k:string)=>values.get(k)??null,setItem:(k:string,v:string)=>{values.set(k,v);}};
+ const character = newLife(101, 1000);
+ startActivity(character, 'study', 1000);
+ advanceLife(character, 1120);
+ assert.equal(character.skills.knowledge, 18);
+ saveLife(storage, character);
+ const restored = loadLife(storage, 101, 1040);
+ assert.equal(restored.skills.knowledge, 18);
+ const prior = restored.skills.knowledge;
+ advanceLife(restored, 1040);
+ assert.equal(restored.skills.knowledge, prior);
 });

@@ -18,6 +18,7 @@ The SIM Click is a **separate game**, imported from [CityManager](https://github
 npm ci
 npm run test:simclick
 npm run build
+# Windows runner/Edge: npm run test:simclick:browser (after vite preview)
 npm run dev
 ```
 

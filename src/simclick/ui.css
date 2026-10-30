@@ -14,5 +14,5 @@ html.simclick-mode:not(.simclick-builder) .top-hud,html.simclick-mode:not(.simcl
 .sc-hero{padding:14px;border-radius:12px;background:#eaf1e8}.sc-message{margin:0;padding:9px 13px;background:#f0f8f1;font-size:11px}.sc-note{font-size:10px!important;color:#738294!important}
 .sc-nav{position:absolute;bottom:max(8px,env(safe-area-inset-bottom));left:10px;right:10px;max-width:540px;margin:auto;display:flex;padding:5px}
 .sc-nav button{flex:1;border:0;background:transparent;display:flex;flex-direction:column;align-items:center;border-radius:12px;padding:6px}.sc-nav button.active{background:#e5f0e9;color:#2b7550}.sc-nav span{font-size:20px}.sc-nav small{font-size:11px}
-html.simclick-builder .sc-header{left:auto}.sc-builder-note{position:absolute;top:85px;right:10px;background:#fff3d3;border-radius:10px;padding:8px}
+html.simclick-builder .sc-header{left:10px;right:auto;top:90px;max-width:210px}html.simclick-builder .sc-header strong{display:none}.sc-builder-note{position:absolute;top:85px;right:10px;background:#fff3d3;border-radius:10px;padding:8px}
 @media(min-width:860px){.sc-panel{left:16px;right:auto;width:380px}.sc-nav{left:405px;right:auto;width:300px}}

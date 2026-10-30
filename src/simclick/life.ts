@@ -99,12 +99,23 @@ export function loadLife(storage: Pick<Storage, 'getItem'>, seed: number, now: n
     const raw = storage.getItem(LIFE_SAVE_KEY);
     if (!raw) return newLife(seed, now);
     const s: LifeState = JSON.parse(raw);
-    if (s.version !== 1 || s.citySeed !== seed || !Number.isFinite(s.lastMinute) || s.lastMinute > now ||
+    if (s.version !== 1 || s.citySeed !== seed || !Number.isFinite(s.lastMinute) || s.lastMinute < 0 ||
       !Number.isFinite(s.age) || typeof s.name !== 'string' || !s.needs || !s.skills ||
       !Object.values(s.needs).every(n => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 100) ||
       !Object.values(s.skills).every(n => typeof n === 'number' && Number.isFinite(n) && n >= 0) ||
       !Array.isArray(s.events) || !s.events.every(e => typeof e === 'string') ||
       (s.activity && (!ids.includes(s.activity.id) || !Number.isFinite(s.activity.endsAt)))) return newLife(seed, now);
+    // City autosave and the local life sidecar have different write cadences.
+    // A restored city may be earlier than the character's last observed minute.
+    // Keep earned character progress, but do not grant a second completion for an
+    // activity that was already seen in the uncommitted future.
+    if (s.lastMinute > now) {
+      const remaining = s.activity ? Math.max(1, s.activity.endsAt - s.lastMinute) : 0;
+      s.activity = s.activity && remaining > 0 ? { id: s.activity.id, endsAt: now + remaining } : null;
+      s.lastMinute = now;
+      remember(s, 'เวลาในเมืองย้อนกลับสู่จุดเซฟล่าสุด');
+      return s;
+    }
     return advanceLife(s, now);
   } catch { return newLife(seed, now); }
 }

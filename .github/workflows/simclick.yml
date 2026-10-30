@@ -54,8 +54,61 @@ jobs:
         uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
         with:
           path: dist
-  deploy:
+  browser:
+    name: Mobile browser acceptance
     needs: verify
+    runs-on: windows-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Build for local browser check
+        env:
+          VITE_MARKET_URL: ''
+          VITE_CITY_ADVISOR_ONLINE: 'false'
+          VITE_CITY_ENTITY_ADVISOR_ONLINE: 'false'
+          VITE_CITY_OWNER_ADVISOR_ONLINE: 'false'
+        run: npm run build
+      - name: Run Edge WebGL2 mobile smoke test
+        run: |
+          New-Item -ItemType Directory -Force .test-output | Out-Null
+          $preview = Start-Process -FilePath (Get-Command node).Source -ArgumentList @('node_modules/vite/bin/vite.js', 'preview', '--host', '127.0.0.1', '--port', '4173', '--strictPort') -WindowStyle Hidden -PassThru -RedirectStandardOutput .test-output/simclick-preview.log -RedirectStandardError .test-output/simclick-preview-error.log
+          try {
+            $ready = $false
+            for ($i = 0; $i -lt 60; $i++) {
+              try {
+                $response = Invoke-WebRequest -Uri 'http://127.0.0.1:4173/The-SIM-Click/' -TimeoutSec 2
+                if ($response.StatusCode -eq 200) { $ready = $true; break }
+              } catch {}
+              Start-Sleep -Milliseconds 500
+            }
+            if (-not $ready) { throw 'The SIM Click preview did not start.' }
+            npm run test:simclick:browser
+            if ($LASTEXITCODE -ne 0) { throw 'The SIM Click mobile browser acceptance failed.' }
+          } finally {
+            Stop-Process -Id $preview.Id -ErrorAction SilentlyContinue
+          }
+      - name: Upload mobile screenshots and logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: simclick-mobile-browser-evidence
+          path: |
+            .test-output/simclick-browser/*.png
+            .test-output/simclick-preview*.log
+          if-no-files-found: warn
+          retention-days: 7
+          include-hidden-files: true
+
+  deploy:
+    needs: [verify, browser]
     if: github.ref == 'refs/heads/main' && needs.verify.outputs.pages_ready == 'success'
     runs-on: ubuntu-latest
     permissions:
