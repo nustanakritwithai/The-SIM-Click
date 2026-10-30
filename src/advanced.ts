@@ -3,7 +3,7 @@
  * behind one per-browser switch in the game menu, off by default. `?advanced=1` turns them on for one
  * visit without storing anything; `?signals=1` keeps working as before.
  */
-export const ADVANCED_KEY = 'citymanager.advanced.v1';
+export const ADVANCED_KEY = 'simclick.advanced.v1';
 
 function params() { try { return new URLSearchParams(location.search); } catch { return new URLSearchParams(); } }
 

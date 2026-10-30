@@ -9,7 +9,7 @@ export async function requireGuestEntry(client: MarketClient, onAuthenticated: (
   for (const { node } of blockedElements) node.inert = true;
   const overlay = document.createElement('section'); overlay.className = 'guest-entry-gate'; overlay.setAttribute('aria-labelledby', 'guest-entry-title');
   const card = document.createElement('div'); card.className = 'guest-entry-card';
-  const title = document.createElement('h1'); title.id = 'guest-entry-title'; title.textContent = 'CityManager';
+  const title = document.createElement('h1'); title.id = 'guest-entry-title'; title.textContent = 'The SIM Click';
   const subtitle = document.createElement('p'); subtitle.textContent = 'เล่นเมืองออฟไลน์ หรือเชื่อมบัญชี Guest เพื่อใช้ตลาด';
   const note = document.createElement('p'); note.className = 'guest-entry-note'; note.textContent = 'ตลาดออนไลน์เป็น sandbox แยก ใช้เครดิตและสต็อกตลาดทดสอบเท่านั้น';
   const button = document.createElement('button'); button.type = 'button'; button.textContent = 'เข้าสู่ระบบแบบแขก';

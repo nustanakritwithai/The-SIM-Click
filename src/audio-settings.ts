@@ -2,7 +2,7 @@
  * Per-browser sound settings. Volumes are 0–1 per bus; sound is on at a low level by default and
  * only starts after the player's first tap or key press, as browsers require.
  */
-export const AUDIO_KEY = 'citymanager.audio.v1';
+export const AUDIO_KEY = 'simclick.audio.v1';
 export const AUDIO_BUSES = ['ui', 'events', 'ambience', 'music'] as const;
 export type AudioBus = typeof AUDIO_BUSES[number];
 export type AudioSettings = { muted: boolean; master: number } & Record<AudioBus, number>;

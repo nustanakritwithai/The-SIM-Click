@@ -68,7 +68,7 @@ export const mergeMarketListings = <T extends { id: string; status?: unknown }>(
 
 export function installMarketPanel(city: () => City, onChanged: () => void, saveCity: () => void) {
   void import('./market-panel.css');
-  const base = (import.meta as ImportMeta & {env: Record<string,string|undefined>}).env.VITE_MARKET_URL ?? '';
+  const base = ''; // The SIM Click has no linked CityManager market server.
   const client = new MarketClient(city, base, { recoveryEnabled: recoveryApiEnabled });
   const host = document.querySelector<HTMLElement>('.page-buttons');
   if (!host || !client.enabled) return {client, render: () => undefined};

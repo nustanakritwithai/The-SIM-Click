@@ -22,6 +22,7 @@ import '@fontsource/ibm-plex-sans-thai/latin-400.css';
 import '@fontsource/ibm-plex-sans-thai/latin-600.css';
 import '@fontsource/ibm-plex-sans-thai/latin-700.css';
 import './style.css';
+import { installSimClick } from './simclick/ui.ts';
 import './tokens.css';
 import { setupSubmenus, renderSubmenus } from './submenus.ts';
 import { setupSubmenuNavigation, closeSubmenus, hasOpenSubmenu } from './submenu-navigation.ts';
@@ -29,7 +30,7 @@ import './submenu-layout.css';
 import './context-layout.css';
 import { renderContext, renderCityOverview, showOwnerFinanceResult } from './context-panels.ts';
 import { CityView } from './renderer.ts';
-import { GATEWAY, SIZE, access, utilityAt, utilities, utilityStatus, treasurySpendable, parkStaffingStatus, parkAt, campusAt, buildCampus, buildPark, toggleCampus, upgradeCampus, adoptSavedEducation, plantAt, buildPlant, createCity, buildRoad, zoneCell, bulldoze, summary, serialize, roadPath, buildParallelRoad, editRoadJunction, contributeOwnerCapital, withdrawOwnerProfit, selectFarmCrop, selectFactoryRecipe, isMarket, type City, type Zone } from './sim.ts';
+import { GATEWAY, SIZE, step as stepCity, access, utilityAt, utilities, utilityStatus, treasurySpendable, parkStaffingStatus, parkAt, campusAt, buildCampus, buildPark, toggleCampus, upgradeCampus, adoptSavedEducation, plantAt, buildPlant, createCity, buildRoad, zoneCell, bulldoze, summary, serialize, roadPath, buildParallelRoad, editRoadJunction, contributeOwnerCapital, withdrawOwnerProfit, selectFarmCrop, selectFactoryRecipe, isMarket, type City, type Zone } from './sim.ts';
 import './compact-layout.css';
 import './agriculture-tools.css';
 import { PARK, PARK_STAFF } from './parks.ts';
@@ -97,7 +98,7 @@ const signalsEnabled = () => advancedOn && (SIGNAL_ENV.VITE_CITY_SIGNALS !== 'fa
 let signalPanel: ReturnType<typeof createSignalPanel> | undefined;
 let entityExplanationPanel: ReturnType<typeof createEntityExplanationPanel> | undefined;
 // A first game starts on an empty map with the guide; `?starter=1` opens the sample city instead.
-const STARTER = new URLSearchParams(location.search).get('starter') === '1';
+const STARTER = new URLSearchParams(location.search).get('starter') !== '0';
 let city: City;
 let parkRuntime: ParkRuntime;
 /** Aggregate traffic model (flag OFF by default; dev: ?traffic=1). Null keeps the old behaviour exactly. */
@@ -115,11 +116,12 @@ const sound = (name: EffectName) => audio.play(name);
 const resultSound = <T extends { ok: boolean }>(result: T, success: EffectName): T => { sound(result.ok ? success : 'ui-error'); return result; };
 const mapInfo = { overlayKey: '', overlayTick: -1, overlayAt: 0, issueLayout: '', issueTick: -1, issueAt: 0 };
 let view: CityView;
+let simClick: ReturnType<typeof installSimClick> | undefined;
 let roadMode: RoadMode = 'normal', roadMenu: ReturnType<typeof installRoadMenu> | undefined;
 let selectMenu: ReturnType<typeof installSelectMenu> | undefined;
 let servicesMenu: ReturnType<typeof installServicesMenu> | undefined, constructionMenu: ReturnType<typeof installConstructionMenu> | undefined;
 let tool = 'select', selected: number | null = null, roadStart: number | null = null, hover: number | null = null;
-let paused = false, speed = 1;
+let paused = false, speed = 1 / 120; // One game day per two real minutes.
 let educationPanel: ReturnType<typeof installEducationPanel> | undefined;
 let panelTime: ReturnType<typeof installPanelTimeControls> | undefined;
 let parkFrameMs = 0, parkFramePeakMs = 0;
@@ -246,7 +248,7 @@ function activate(index: number) {
   else if (tool === 'park') status(resultSound(buildPark(city, index), 'ui-place').message);
   else if (tool === 'school' || tool === 'university') status(resultSound(buildCampus(city, index, tool), 'ui-place').message);
   else if (tool === 'bulldoze') status(resultSound(bulldoze(city, index), 'ui-bulldoze').message);
-  else if (tool === 'select') openRoute({page:'place',cell:index,buildingId:city.cells[index].building});
+  else if (tool === 'select') { if (simClick) simClick.visit(index); else openRoute({page:'place',cell:index,buildingId:city.cells[index].building}); }
   if (tool !== 'select') ownerDecisionSession.syncExternal(city, 'player-map-command');
   trafficLayer?.afterMapEdit(city);
   render();
@@ -508,18 +510,18 @@ function updateMapInfo(placement: Preview | null) {
 }
 
 async function boot() {
-  const entryClient = new MarketClient(() => city, (import.meta as ImportMeta & {env: Record<string,string|undefined>}).env.VITE_MARKET_URL ?? '');
+  const entryClient = new MarketClient(() => city, ''); // Never reuse CityManager market accounts.
   if (entryClient.enabled) { await new Promise<void>((resolve, reject) => { void requireGuestEntry(entryClient, resolve).catch(reject); }); }
-  const startup=restoreStartupCity({getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)},()=>createCity(61025,{starter:STARTER}));
+  const startup=restoreStartupCity({getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)},()=>{const first=createCity(61025,{starter:STARTER});if(STARTER)for(let day=0;day<24;day++)stepCity(first);return first;});
   city=startup.city;parkRuntime=startup.runtime;importedLegacyRaw=startup.legacyRaw;
   if(!city.education)adoptSavedEducation(city);
   const saveGuard=startup.guard,startupSaveError=startup.error;
-  syncEducationTools();if(startup.restored||startup.error)paused=true;
+  syncEducationTools();if(startup.error)paused=true; // Life game resumes automatically after a valid save.
   ownerDecisionSession = createOwnerDecisionSession(city);
   setupSubmenus(); setupSubmenuNavigation(cancel);
   $('#signal-entry').hidden = !signalsEnabled();
   signalPanel = createSignalPanel($('#signal-content'), { getCity: () => city, connection: {
-    enabled: SIGNAL_ENV.VITE_CITY_ADVISOR_ONLINE !== 'false', endpoint: SIGNAL_ENV.VITE_CITY_ADVISOR_ENDPOINT || 'https://157.85.96.139:5444/api/city-advisor/report'
+    enabled: false, endpoint: SIGNAL_ENV.VITE_CITY_ADVISOR_ENDPOINT || 'https://157.85.96.139:5444/api/city-advisor/report'
   } });
   const entityExplanationHost = document.createElement('section');
   entityExplanationHost.id = 'entity-explanation-host';
@@ -539,7 +541,7 @@ async function boot() {
     if (!advancedOn || entityExplanationPanel) return;
   entityExplanationPanel = createEntityExplanationPanel(entityExplanationHost, {
     getCity: () => city, getSelection: selectedEntity, connection: {
-      enabled: SIGNAL_ENV.VITE_CITY_ENTITY_ADVISOR_ONLINE === 'true',
+      enabled: false,
       endpoint: SIGNAL_ENV.VITE_CITY_ADVISOR_ENDPOINT || 'https://157.85.96.139:5444/api/city-advisor/report'
     }
   });
@@ -551,7 +553,7 @@ async function boot() {
       render();
     },
     connection: {
-      enabled: SIGNAL_ENV.VITE_CITY_OWNER_ADVISOR_ONLINE === 'true',
+      enabled: false,
       endpoint: SIGNAL_ENV.VITE_CITY_ADVISOR_ENDPOINT || 'https://157.85.96.139:5444/api/city-advisor/report'
     }
   });
@@ -573,6 +575,7 @@ async function boot() {
     selected = b; roadStart = null; status(resultSound(roadCommand(a, b), 'ui-road').message);
     ownerDecisionSession.syncExternal(city, 'player-drag-road'); render();
   });
+  simClick = installSimClick({ city: () => city, minute: () => city.tick * 1440 + parkRuntime.activity.minute + parkRuntime.minuteRemainder, focus: cell => { view.focus(cell); render(); } });
   parkScene = new SceneParkActivity(view);
   view.traffic.setWalkersEnabled(false);
   if (trafficModelEnabled()) { view.traffic.setCarsEnabled(false); const canvas = $('#city-canvas') as HTMLCanvasElement; trafficLayer = new TrafficLayer(view.app, screenCull(i => view.project(i), () => ({ width: canvas.clientWidth, height: canvas.clientHeight }))); }
@@ -681,7 +684,7 @@ async function boot() {
   $('#load-backup').addEventListener('click', () => loadStored('backup'));
   const checkpointButton=document.createElement('button');checkpointButton.id='load-autosave-copy';checkpointButton.textContent='โหลดสำเนาอัตโนมัติล่าสุด';checkpointButton.onclick=()=>void loadStored('checkpoint');$('#load-backup').insertAdjacentElement('afterend',checkpointButton);
   const conflictButton=document.createElement('button');conflictButton.id='load-save-conflict';conflictButton.textContent='กู้คืนสำเนางานที่ขัดแย้ง';conflictButton.onclick=()=>void loadStored('conflict');checkpointButton.insertAdjacentElement('afterend',conflictButton);
-  const exportButton=document.createElement('button');exportButton.id='export-city-save';exportButton.textContent='ส่งออกเซฟเมืองเป็นไฟล์';exportButton.onclick=()=>{try{const raw=serializeParkSession(city,parkRuntime,city.market),url=URL.createObjectURL(new Blob([raw],{type:'application/json'})),link=document.createElement('a');link.href=url;link.download=`citymanager-day-${city.tick}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);status('ส่งไฟล์เซฟให้เบราว์เซอร์ดาวน์โหลดแล้ว ตรวจไฟล์ก่อนปิดเกม');}catch(error){status(error instanceof Error?error.message:'ส่งออกไม่สำเร็จ');}};$('#save').insertAdjacentElement('afterend',exportButton);
+  const exportButton=document.createElement('button');exportButton.id='export-city-save';exportButton.textContent='ส่งออกเซฟเมืองเป็นไฟล์';exportButton.onclick=()=>{try{const raw=serializeParkSession(city,parkRuntime,city.market),url=URL.createObjectURL(new Blob([raw],{type:'application/json'})),link=document.createElement('a');link.href=url;link.download=`simclick-day-${city.tick}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);status('ส่งไฟล์เซฟให้เบราว์เซอร์ดาวน์โหลดแล้ว ตรวจไฟล์ก่อนปิดเกม');}catch(error){status(error instanceof Error?error.message:'ส่งออกไม่สำเร็จ');}};$('#save').insertAdjacentElement('afterend',exportButton);
   const campusAction = (action: typeof toggleCampus) => {
     const campus = route?.page === 'place' ? campusAt(city, route.cell) : undefined;
     if (!campus) return;
@@ -700,7 +703,7 @@ async function boot() {
       try{saveGuard.preserveNew(serializeParkSession(city,parkRuntime,city.market));}catch(error){status(error instanceof Error?error.message:'เก็บสำเนาเมืองเดิมไม่สำเร็จ');return;}
       try { if (marketPanel?.client.enabled && (marketPanel.client.guestId||marketPanel.client.journal.operations.length)) await marketPanel.client.resetCity(); } catch { status('ยังเริ่มเมืองใหม่ไม่ได้ กรุณาตรวจสอบรายการตลาดก่อน'); return; }
       saveGuard.authorizeNew(serializeParkSession(city,parkRuntime,city.market));autosave.reset();
-      city = createCity(61025, { starter }); parkRuntime = createParkRuntime(city); cueLimiter.reset(); syncEducationTools(); ownerDecisionSession.reset(city); ownerDecisionPanel?.reset(); importedLegacyRaw = null; selected = roadStart = null; inspector(false); paused = true; setTool('select');
+      city = createCity(61025, { starter }); if(starter)for(let day=0;day<24;day++)stepCity(city); parkRuntime = createParkRuntime(city); simClick?.reset(); cueLimiter.reset(); syncEducationTools(); ownerDecisionSession.reset(city); ownerDecisionPanel?.reset(); importedLegacyRaw = null; selected = roadStart = null; inspector(false); paused = true; setTool('select');
       if (starter) guide?.hold(); else { guide?.start(); view.focus(GATEWAY + 5); }
       render(); status(starter ? 'เมืองตัวอย่างพร้อมแล้ว · กดเล่นต่อเพื่อเริ่มเวลา' : 'แผนที่ว่างพร้อมแล้ว · ทำตามผู้ช่วยสอนด้านล่าง'); dialog.close();
     };
@@ -771,6 +774,7 @@ async function boot() {
     if (days && before) for (const cue of cueLimiter.admit(cityCues(before, city).filter(cue => cue !== 'ev-month'), performance.now())) sound(cue);
     if (days) render();
     else if (route?.page === 'city') renderParkPanel();
+    simClick?.sync();
   });
   // Read-only diagnostics for reproducible QA; no renderer-owned simulation state.
   Object.defineProperty(window, 'cityManager', { value: { snapshot: () => serialize(city), sessionSnapshot: () => serializeParkSession(city, parkRuntime), parks: () => ({ ...parkActivityDiagnostics(parkRuntime.activity), ...parkScene?.diagnostics, minuteRemainder: parkRuntime.minuteRemainder, recreation: structuredClone(parkRuntime.recreation), paused, speed, frameMs: parkFrameMs, peakFrameMs: parkFramePeakMs }), audio: () => audio.diagnostics(), cellScreen: (i: number) => view.project(i), engine: 'PlayCanvas 2.23.3', visuals: () => view.assets?.status ?? { ready: false, loaded: [], failed: [] }, ground: () => view.ground.diagnostics, agriculture: () => view.agricultureDiagnostics(), atmosphere: () => visual.diagnostics, traffic: () => trafficLayer?.diagnostics ?? null } });
