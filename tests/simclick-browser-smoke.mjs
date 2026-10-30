@@ -36,7 +36,7 @@ async function until(expression,timeout=35000){
  throw Error('Condition timeout: '+expression);
 }
 async function click(selector){
- const bounds=await evaluate('(()=>{const el=document.querySelector('+JSON.stringify(selector)+');if(!el)throw Error("Missing '+selector+'");el.scrollIntoView({block:"nearest"});const r=el.getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2,width:r.width,height:r.height,top:r.top,bottom:r.bottom,active:el===document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)||el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))}})()');
+ const bounds=await evaluate('(()=>{const el=document.querySelector('+JSON.stringify(selector)+');if(!el)throw Error("Missing target element");el.scrollIntoView({block:"nearest"});const r=el.getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2,width:r.width,height:r.height,top:r.top,bottom:r.bottom,active:el===document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)||el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))}})()');
  assert.ok(bounds.width>=12&&bounds.height>=12,'Touch target must be visible: '+selector);
  assert.ok(bounds.active,'Touch target obstructed: '+selector+JSON.stringify(bounds));
  for(const type of ['mouseMoved','mousePressed','mouseReleased'])
