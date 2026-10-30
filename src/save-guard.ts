@@ -5,14 +5,14 @@ import {equivalentStoredSessions} from './save-equivalence.ts';
 import {readStoredCity,saveStoredCity,SAVE_KEY,AUTOSAVE_CHECKPOINT_KEY,PRE_AUTOSAVE_BACKUP,saveConflictBackupKeys,LATEST_BACKUP_KEY,SAVE_CONFLICT_LATEST_KEY,SAVE_CONFLICT_INDEX_KEY} from './save-storage.ts';
 type Store=Pick<Storage,'getItem'|'setItem'>;
 export function createSaveGuard(backing:Store){
- const isCopy=(key:string)=>key===AUTOSAVE_CHECKPOINT_KEY||/^citymanager\.backup\.save-conflict\.[0-9]+$/.test(key);
+ const isCopy=(key:string)=>key===AUTOSAVE_CHECKPOINT_KEY||/^simclick\.backup\.save-conflict\.[0-9]+$/.test(key);
  const storage:Store={getItem:key=>isCopy(key)?decodeSaveCopy(backing.getItem(key)):backing.getItem(key),setItem:(key,value)=>backing.setItem(key,isCopy(key)?encodeSaveCopy(value):value)};
  let expected:string|null=null,checkpoint:string|null=null,armed=false,replacement=false,generation=0;let pendingArchive:string[]=[];
  try{expected=storage.getItem(SAVE_KEY);checkpoint=storage.getItem(AUTOSAVE_CHECKPOINT_KEY);armed=readStoredCity(storage)===null&&!checkpoint;}catch{/* unavailable storage never authorizes replacing data */}
  const archive=(raw:string|null,publishPointer=true)=>{
   if(raw===null)return;
   const keys=saveConflictBackupKeys(storage);let key=keys.find(k=>storage.getItem(k)===raw);
-  if(!key){key=keys.find(k=>storage.getItem(k)===null);if(!key){let n=keys.length;do{key=`citymanager.backup.save-conflict.${n++}`;}while(storage.getItem(key)!==null);storage.setItem(SAVE_CONFLICT_INDEX_KEY,JSON.stringify([...keys,key]));}storage.setItem(key,raw);}
+  if(!key){key=keys.find(k=>storage.getItem(k)===null);if(!key){let n=keys.length;do{key=`simclick.backup.save-conflict.${n++}`;}while(storage.getItem(key)!==null);storage.setItem(SAVE_CONFLICT_INDEX_KEY,JSON.stringify([...keys,key]));}storage.setItem(key,raw);}
   let valid=true;try{deserializeParkSession(raw);}catch{valid=false;}
   if(valid&&publishPointer)storage.setItem(SAVE_CONFLICT_LATEST_KEY,key);return valid?key:undefined;
  };

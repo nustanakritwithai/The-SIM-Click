@@ -6,7 +6,7 @@ import { PAGES_MARKET_BASE, PAGES_ORIGIN, pagesSession } from './pages-auth.ts';
 import { CROP_STOCK_CAPS, farmStockCapacity, releaseCropCost } from './agriculture.ts';
 import { CROPS, PRODUCTS, RECIPE, type CropId, type ProductId } from './goods.ts';
 
-export const MARKET_SAVE_KEY = 'citymanager.market.v10';
+export const MARKET_SAVE_KEY = 'simclick.market.v10';
 export const MARKET_RULES = 'chain-5' as const;
 export const MARKET_ITEMS = ['crop:rice', 'crop:vegetables', 'crop:sugarcane', 'product:milled-rice', 'product:canned-food', 'product:sugar'] as const;
 export type MarketItem = typeof MARKET_ITEMS[number];

@@ -8,7 +8,7 @@ import type { CityView } from './renderer.ts';
 import type { City } from './sim.ts';
 
 export type VisualSettings = { timeMode: TimeMode; quality: Quality | 'auto'; rain: boolean; seasons: boolean; traffic: boolean; mapInfo: boolean };
-const STORAGE_KEY = 'citymanager.visual.v1';
+const STORAGE_KEY = 'simclick.visual.v1';
 const DEFAULTS: VisualSettings = Object.freeze({ timeMode: 'auto', quality: 'auto', rain: true, seasons: true, traffic: true, mapInfo: true });
 const TIME_LABELS: Record<TimeMode, string> = { auto: 'อัตโนมัติ · รอบละ 5 นาที', morning: 'เช้า', noon: 'กลางวัน', evening: 'เย็น', night: 'กลางคืน', local: 'ตามเวลาเครื่อง' };
 const QUALITY_LABELS: Record<Quality | 'auto', string> = { auto: 'อัตโนมัติ', low: 'ต่ำ', medium: 'กลาง', high: 'สูง' };
