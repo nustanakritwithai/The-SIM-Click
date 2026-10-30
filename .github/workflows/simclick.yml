@@ -11,6 +11,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   verify:
+    outputs:
+      pages_ready: ${{ steps.pages.outcome }}
     permissions:
       contents: read
       pages: write
@@ -34,18 +36,27 @@ jobs:
           VITE_CITY_OWNER_ADVISOR_ONLINE: 'false'
         run: npm run build
       - name: Enable GitHub Pages for the new repo
+        id: pages
+        continue-on-error: true
         if: github.ref == 'refs/heads/main'
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
         with:
           enablement: 'true'
-      - name: Upload static site
+      - name: Keep a downloadable build if Pages needs manual setup
         if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: simclick-v0.1-dist
+          path: dist
+          retention-days: 7
+      - name: Upload static site
+        if: github.ref == 'refs/heads/main' && steps.pages.outcome == 'success'
         uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
         with:
           path: dist
   deploy:
     needs: verify
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && needs.verify.outputs.pages_ready == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read
