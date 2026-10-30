@@ -27,7 +27,7 @@ export function installSimClick(api: { city: () => City; minute: () => number; f
    const ids: ActivityId[] = place !== null && c.parks.some(p=>p.cell===place) ? ['park','socialize','relax'] : zone === 'R' ? ['sleep','eat','relax','clean'] : zone === 'C' ? ['work','eat','socialize'] : zone === 'I' || zone === 'F' ? ['work','study','relax'] : ['work','eat','relax','socialize'];
    content += actions(ids) + '<p class="sc-note">V0.1: การเลือกสถานที่ยังไม่คำนวณการเดินทางหรือรถติดจริง</p>';
   } else if (page === 'home') {
-   content = '<h2>🏠 บ้านของฉัน</h2><div class="sc-hero">🏡 ' + (house ? 'บ้านเลขที่ ' + house.id + ' · ระดับ ' + house.level : 'เมืองกำลังสร้างที่พักอาศัย') + '</div>' + needs() + '<h3>กิจกรรมในบ้าน</h3>' + actions(['sleep','eat','relax','clean']);
+   content = '<h2>🏠 บ้านของฉัน</h2><div class="sc-hero">🏡 ' + (house ? 'บ้านเลขที่ ' + house.id + ' · ระดับ ' + house.level : 'เมืองกำลังสร้างที่พักอาศัย') + '</div><h3>ความต้องการ</h3>' + needs() + '<h3>กิจกรรมในบ้าน</h3>' + actions(['sleep','eat','relax','clean']);
    if (house) content += '<button class="sc-place" data-sc-place="' + house.cell + '">📍 ดูบ้านบนแผนที่</button>';
    content += '<p class="sc-note">กินอาหารยังไม่หักสต็อกสินค้าจากตลาด จนกว่าจะเชื่อมระบบซื้อขาย</p>';
   } else {
