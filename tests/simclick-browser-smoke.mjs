@@ -98,7 +98,7 @@ try{
  await until('!!localStorage.getItem("simclick.save.v7")',15000);
  assert.equal(await evaluate('localStorage.getItem("citymanager.save.v7")'),null,'CityManager saves remain untouched');
  await screenshot('03-builder-393.png');
- await send('Page.reload',{ignoreCache:true});
+ await send('Page.navigate',{url:'http://127.0.0.1:4173/The-SIM-Click/?qa-reload=1'});
  await until('!!window.cityManager && !!document.querySelector(".sc-panel")',45000);
  assert.ok((await evaluate('JSON.parse(localStorage.getItem("simclick.life.v1")).events.join("|")')).length>5,'Life progress survived reload');
  assert.equal(await evaluate('localStorage.getItem("citymanager.save.v7")'),null);
